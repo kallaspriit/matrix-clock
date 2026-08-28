@@ -82,7 +82,7 @@ namespace ClockFace {
 
     // Digits come from the custom 5x8 set so they fill all eight rows. The blinking colon carries
     // the seconds on its own, which reads better than giving up a row to a progress bar.
-    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, DateDisplay& date, SecondsIndicator& seconds, const CRGB& color) {
+    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, DateDisplay& date, SecondsIndicator& seconds, const CRGB& topColor, const CRGB& bottomColor) {
         matrix.fillScreen(Color::BLACK);
         matrix.setFont(nullptr);
         matrix.setTextSize(1);
@@ -112,11 +112,11 @@ namespace ClockFace {
         };
 
         animator.update(digits);
-        animator.render(matrix, color);
+        animator.render(matrix, topColor, bottomColor);
 
         date.render(matrix, timeKeeper.dayOfMonth(), timeKeeper.monthOfYear());
 
-        seconds.render(matrix, color);
+        seconds.render(matrix, topColor, bottomColor);
     }
 
 }  // namespace ClockFace

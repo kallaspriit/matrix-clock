@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <FastLED.h>
 
 // Hardware wiring
 // constexpr uint8_t DATA_PIN = 19; // // EatSpot V3
@@ -58,3 +59,9 @@ constexpr uint8_t SECONDS_BREATHE_FLOOR = 64;     // breathe never drops below t
 constexpr uint32_t SECONDS_SCAN_PERIOD_MS = 2000; // one full sweep down and back up
 constexpr uint8_t SECONDS_SCAN_TAIL = 4;          // how many rows the trail spans
 constexpr uint8_t SECONDS_SCAN_LEAD_RATIO = 3;    // pixels ahead of the head fade this much faster
+
+// Shared palette. The clock digits run these as a vertical gradient down the panel, and the date
+// uses the same two as flat per digit colours, so the whole face reads as one palette rather than
+// as a clock with some unrelated numbers next to it.
+static const CRGB PALETTE_TOP = CRGB(255, 140, 0);    // orange
+static const CRGB PALETTE_BOTTOM = CRGB(0, 255, 140);  // spring green

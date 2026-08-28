@@ -51,14 +51,13 @@ enum DateMode {
     DATE_DAY,        // day only, 3x8. The default, twice the glyph structure and actually readable
 };
 
-// Four distinct hues, one per digit. Sharing a colour between the day and month rows made the two
-// rows echo each other, so every digit gets its own. Within a row the pair is roughly 100 degrees
-// apart in hue, which is what keeps touching digits separable with no gap column between them.
-// All four stay clear of the clock's cyan.
-static const CRGB DATE_DAY_TENS = CRGB(255, 120, 0);     // orange
-static const CRGB DATE_DAY_UNITS = CRGB(40, 210, 60);    // green
-static const CRGB DATE_MONTH_TENS = CRGB(255, 40, 150);  // magenta
-static const CRGB DATE_MONTH_UNITS = CRGB(230, 190, 0);  // yellow
+// The two ends of the shared palette, which is what keeps touching digits separable with no gap
+// column between them. The month row swaps them, so in the stacked mode all four positions are
+// still told apart by the combination of row and colour without introducing new hues.
+static const CRGB DATE_DAY_TENS = PALETTE_TOP;
+static const CRGB DATE_DAY_UNITS = PALETTE_BOTTOM;
+static const CRGB DATE_MONTH_TENS = PALETTE_BOTTOM;
+static const CRGB DATE_MONTH_UNITS = PALETTE_TOP;
 
 class DateDisplay {
    public:

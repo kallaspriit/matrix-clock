@@ -28,7 +28,10 @@ RenderMode mode = MODE_TEST;
 size_t testIndex = 0;
 uint32_t frameCounter = 0;
 uint8_t brightness = DEFAULT_BRIGHTNESS;
-CRGB clockColor = CRGB(0, 200, 255);
+CRGB clockBase = PALETTE_TOP;
+CRGB clockTop = PALETTE_TOP;
+CRGB clockBottom = PALETTE_BOTTOM;
+int16_t clockGradient = 0;
 
 char serialLine[SERIAL_LINE_LIMIT];
 size_t serialLineLength = 0;
@@ -110,7 +113,8 @@ void printHelp() {
     Serial << "  layout bits <0-15>     set the permutation directly" << endl;
     Serial << "  time <epochSeconds>    sync the clock, host sends LOCAL epoch" << endl;
     Serial << "  bright <0-255>         global brightness" << endl;
-    Serial << "  color <r> <g> <b>      clock face color" << endl;
+    Serial << "  color <r> <g> <b>      clock face color, or six values for an explicit gradient" << endl;
+    Serial << "  grad <-128..128>       spread the face hue top to bottom, 0 for flat" << endl;
     Serial << "  anim <roll|fade|none>  how digits change over" << endl;
     Serial << "  demo [seconds]         jump to just before 20:00 to watch all four digits cascade" << endl;
     Serial << "  date <dm|d|off>        day over month, day only at full height, or hidden" << endl;
@@ -311,20 +315,49 @@ void handleModeCommand(char* arguments) {
     Serial << "ok mode " << arguments << endl;
 }
 
+// Spreads the base colour's hue across the height of the digits, half the spread each way. Zero
+// leaves the base colour untouched rather than round tripping it through HSV, so a flat face is
+// always exactly the colour that was asked for.
+void handleGradientCommand(char* arguments) {
+    clockGradient = (int16_t)constrain(atoi(arguments), -128, 128);
+
+    if (clockGradient == 0) {
+        clockTop = clockBase;
+        clockBottom = clockBase;
+    } else {
+        CHSV base = rgb2hsv_approximate(clockBase);
+
+        clockTop = CHSV((uint8_t)(base.hue - clockGradient / 2), base.sat, base.val);
+        clockBottom = CHSV((uint8_t)(base.hue + clockGradient / 2), base.sat, base.val);
+    }
+
+    Serial << "ok grad " << clockGradient << endl;
+}
+
 void handleColorCommand(char* arguments) {
     int r = 0;
     int g = 0;
     int b = 0;
+    int r2 = 0;
+    int g2 = 0;
+    int b2 = 0;
 
-    if (sscanf(arguments, "%d %d %d", &r, &g, &b) != 3) {
-        Serial << "error: color needs three values 0-255" << endl;
+    int parsed = sscanf(arguments, "%d %d %d %d %d %d", &r, &g, &b, &r2, &g2, &b2);
+
+    if (parsed != 3 && parsed != 6) {
+        Serial << "error: color takes three values for a flat face, or six for an explicit gradient" << endl;
 
         return;
     }
 
-    clockColor = CRGB((uint8_t)constrain(r, 0, 255), (uint8_t)constrain(g, 0, 255), (uint8_t)constrain(b, 0, 255));
+    clockBase = CRGB((uint8_t)constrain(r, 0, 255), (uint8_t)constrain(g, 0, 255), (uint8_t)constrain(b, 0, 255));
+    clockTop = clockBase;
+    clockGradient = 0;
+
+    clockBottom = parsed == 6 ? CRGB((uint8_t)constrain(r2, 0, 255), (uint8_t)constrain(g2, 0, 255), (uint8_t)constrain(b2, 0, 255)) : clockBase;
 
     Serial << "ok color" << endl;
+
 }
 
 void handleCommand(char* line) {
@@ -344,7 +377,7 @@ void handleCommand(char* line) {
     } else if (strcmp(command, "ping") == 0) {
         Serial << "pong" << endl;
     } else if (strcmp(command, "status") == 0) {
-        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " date=" << dateDisplay.modeName() << " sec=" << secondsIndicator.styleName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
+        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " date=" << dateDisplay.modeName() << " sec=" << secondsIndicator.styleName() << " grad=" << clockGradient << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
                << " uptimeS=" << (millis() / 1000) << endl;
 
         reportLayout();
@@ -365,6 +398,8 @@ void handleCommand(char* line) {
         Serial << "ok bright " << brightness << endl;
     } else if (strcmp(command, "color") == 0) {
         handleColorCommand(arguments);
+    } else if (strcmp(command, "grad") == 0) {
+        handleGradientCommand(arguments);
     } else if (strcmp(command, "anim") == 0) {
         handleAnimCommand(arguments);
     } else if (strcmp(command, "demo") == 0) {
@@ -444,7 +479,7 @@ void loop() {
     } else if (mode == MODE_TEST) {
         DISPLAY_TESTS[testIndex].render(matrix, frameCounter);
     } else {
-        ClockFace::render(matrix, timeKeeper, digitAnimator, dateDisplay, secondsIndicator, clockColor);
+        ClockFace::render(matrix, timeKeeper, digitAnimator, dateDisplay, secondsIndicator, clockTop, clockBottom);
     }
 
     FastLED.show();

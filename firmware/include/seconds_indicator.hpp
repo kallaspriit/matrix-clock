@@ -39,16 +39,16 @@ class SecondsIndicator {
         }
     }
 
-    void render(LedMatrix& matrix, const CRGB& color) {
+    void render(LedMatrix& matrix, const CRGB& topColor, const CRGB& bottomColor) {
         switch (style) {
             case SECONDS_COLON:
-                renderColon(matrix, color);
+                renderColon(matrix, topColor, bottomColor);
                 break;
             case SECONDS_BREATHE:
-                renderBreathe(matrix, color);
+                renderBreathe(matrix, topColor, bottomColor);
                 break;
             case SECONDS_SCAN:
-                renderScan(matrix, color);
+                renderScan(matrix, topColor, bottomColor);
                 break;
             default:
                 break;
@@ -58,34 +58,46 @@ class SecondsIndicator {
    private:
     SecondsStyle style = SECONDS_SCAN;
 
-    void renderColon(LedMatrix& matrix, const CRGB& color) {
+    // This column spans the full height like the digits do, so it takes the same vertical gradient
+    static CRGB rowColor(const CRGB& topColor, const CRGB& bottomColor, int16_t y) {
+        if (topColor == bottomColor) {
+            return topColor;
+        }
+
+        return blend(topColor, bottomColor, (uint8_t)((y * 255) / (MATRIX_HEIGHT - 1)));
+    }
+
+    void renderColon(LedMatrix& matrix, const CRGB& topColor, const CRGB& bottomColor) {
         if (millis() % 1000 >= 500) {
             return;
         }
 
-        matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, color);
-        matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, color);
+        matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, rowColor(topColor, bottomColor, COLON_TOP_ROW));
+        matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, rowColor(topColor, bottomColor, COLON_BOTTOM_ROW));
     }
 
-    void renderBreathe(LedMatrix& matrix, const CRGB& color) {
+    void renderBreathe(LedMatrix& matrix, const CRGB& topColor, const CRGB& bottomColor) {
         uint8_t phase = (uint8_t)((millis() % 1000) * 255 / 1000);
 
         // Floored rather than allowed to reach black, both so it never reads as a hard blink and
         // because the bottom of the range would be scaled away by global brightness anyway
         uint8_t level = (uint8_t)(SECONDS_BREATHE_FLOOR + scale8(cubicwave8(phase), 255 - SECONDS_BREATHE_FLOOR));
 
-        CRGB dot = color;
-        dot.nscale8(level);
+        CRGB topDot = rowColor(topColor, bottomColor, COLON_TOP_ROW);
+        CRGB bottomDot = rowColor(topColor, bottomColor, COLON_BOTTOM_ROW);
 
-        matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, dot);
-        matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, dot);
+        topDot.nscale8(level);
+        bottomDot.nscale8(level);
+
+        matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, topDot);
+        matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, bottomDot);
     }
 
     // A bright head with a fade trailing behind it, sweeping down the column and back up once a
     // second. The tail is what sells it, so pixels ahead of the head fall off several times faster
     // than the ones behind, which is what gives the sweep a direction rather than looking like a
     // blob sliding around.
-    void renderScan(LedMatrix& matrix, const CRGB& color) {
+    void renderScan(LedMatrix& matrix, const CRGB& topColor, const CRGB& bottomColor) {
         uint8_t phase = (uint8_t)((millis() % SECONDS_SCAN_PERIOD_MS) * 255 / SECONDS_SCAN_PERIOD_MS);
         bool movingDown = phase < 128;
 
@@ -102,7 +114,7 @@ class SecondsIndicator {
                 continue;
             }
 
-            CRGB pixel = color;
+            CRGB pixel = rowColor(topColor, bottomColor, y);
             pixel.nscale8((uint8_t)(255 - (distance * 255) / tailQ8));
 
             matrix.blendPixel(COLON_COLUMN, y, pixel);

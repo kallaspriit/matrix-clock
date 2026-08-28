@@ -20,7 +20,14 @@ inline void drawGlyphRows(LedMatrix& matrix,
                           const CRGB& topColor,
                           const CRGB& bottomColor) {
     bool flat = topColor == bottomColor;
-    int16_t lastRow = height > 1 ? height - 1 : 1;
+
+    // The gradient is anchored to the panel, not to the glyph. That matters during the roll
+    // transition: with a glyph relative gradient the outgoing digit carries its bottom colour up to
+    // the top of the panel while the incoming digit brings its top colour in at the bottom, so the
+    // seam between them inverts. Keying off the screen row instead keeps the gradient still while
+    // the digits move through it.
+    int16_t panelHeight = matrix.height();
+    int16_t lastRow = panelHeight > 1 ? panelHeight - 1 : 1;
 
     for (int16_t row = 0; row < height; row++) {
         uint8_t bits = rows[row];
@@ -29,7 +36,9 @@ inline void drawGlyphRows(LedMatrix& matrix,
             continue;
         }
 
-        CRGB rowColor = flat ? topColor : blend(topColor, bottomColor, (uint8_t)((row * 255) / lastRow));
+        int16_t panelRow = constrain((int16_t)(y + row), (int16_t)0, (int16_t)(panelHeight - 1));
+
+        CRGB rowColor = flat ? topColor : blend(topColor, bottomColor, (uint8_t)((panelRow * 255) / lastRow));
 
         for (int16_t column = 0; column < width; column++) {
             if (bits & (0x80 >> column)) {
