@@ -4,6 +4,7 @@
 #include <Fonts/TomThumb.h>
 
 #include "config.hpp"
+#include "date_display.hpp"
 #include "digit_animator.hpp"
 #include "digit_font.hpp"
 #include "led_matrix.hpp"
@@ -36,17 +37,51 @@ class TimeKeeper {
         return synced ? (millis() - millisAtSync) / 1000 : 0;
     }
 
+    uint8_t dayOfMonth() const {
+        uint8_t day = 1;
+        uint8_t month = 1;
+
+        civilFromEpoch(now(), day, month);
+
+        return day;
+    }
+
+    uint8_t monthOfYear() const {
+        uint8_t day = 1;
+        uint8_t month = 1;
+
+        civilFromEpoch(now(), day, month);
+
+        return month;
+    }
+
    private:
     uint32_t epochAtSync = 0;
     uint32_t millisAtSync = 0;
     bool synced = false;
+
+    // Howard Hinnant's civil_from_days. Turns a day count since the epoch into a calendar date
+    // without any lookup tables or leap year special casing, by shifting the year to start in March
+    // so the leap day lands at the end of the year rather than in the middle of it.
+    static void civilFromEpoch(uint32_t epochSeconds, uint8_t& day, uint8_t& month) {
+        int32_t z = (int32_t)(epochSeconds / 86400UL) + 719468;
+
+        int32_t era = (z >= 0 ? z : z - 146096) / 146097;
+        uint32_t doe = (uint32_t)(z - era * 146097);
+        uint32_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        uint32_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        uint32_t mp = (5 * doy + 2) / 153;
+
+        day = (uint8_t)(doy - (153 * mp + 2) / 5 + 1);
+        month = (uint8_t)(mp < 10 ? mp + 3 : mp - 9);
+    }
 };
 
 namespace ClockFace {
 
     // Digits come from the custom 5x8 set so they fill all eight rows. The blinking colon carries
     // the seconds on its own, which reads better than giving up a row to a progress bar.
-    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, const CRGB& color) {
+    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, DateDisplay& date, const CRGB& color) {
         matrix.fillScreen(Color::BLACK);
         matrix.setFont(nullptr);
         matrix.setTextSize(1);
@@ -77,6 +112,8 @@ namespace ClockFace {
 
         animator.update(digits);
         animator.render(matrix, color);
+
+        date.render(matrix, timeKeeper.dayOfMonth(), timeKeeper.monthOfYear());
 
         // The colon blinking once a second is the only seconds indication now
         if (millis() % 1000 < 500) {

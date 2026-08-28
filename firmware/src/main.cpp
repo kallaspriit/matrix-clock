@@ -4,6 +4,7 @@
 
 #include "clock_face.hpp"
 #include "config.hpp"
+#include "date_display.hpp"
 #include "digit_animator.hpp"
 #include "display_tests.hpp"
 #include "led_matrix.hpp"
@@ -19,6 +20,7 @@ LedMatrix matrix(leds, MATRIX_WIDTH, MATRIX_HEIGHT);
 TimeKeeper timeKeeper;
 Notification notification;
 DigitAnimator digitAnimator;
+DateDisplay dateDisplay;
 
 RenderMode mode = MODE_TEST;
 size_t testIndex = 0;
@@ -109,6 +111,8 @@ void printHelp() {
     Serial << "  color <r> <g> <b>      clock face color" << endl;
     Serial << "  anim <roll|fade|none>  how digits change over" << endl;
     Serial << "  demo [seconds]         jump to just before 20:00 to watch all four digits cascade" << endl;
+    Serial << "  date <dm|d|off>        day over month, day only at full height, or hidden" << endl;
+    Serial << "  date dim <0-255>       how far the date is dimmed below the time" << endl;
     Serial << "  notify <count> <text>  envelope, unread count, then scrolls the text" << endl;
     Serial << "  clear                  dismiss the current notification" << endl;
     Serial << endl;
@@ -197,11 +201,43 @@ void handleDemoCommand(char* arguments) {
         lead = 3;
     }
 
-    // 72000 seconds into the day is 20:00:00, so stepping back lands in the last minute of 19:xx
-    timeKeeper.sync((uint32_t)(72000 - lead));
+    // 72000 seconds into the day is 20:00:00, so stepping back lands in the last minute of 19:xx.
+    // Keeping the current day means the date block still shows something real while testing.
+    uint32_t dayStart = timeKeeper.now() - (timeKeeper.now() % 86400UL);
+
+    timeKeeper.sync(dayStart + (uint32_t)(72000 - lead));
     mode = MODE_CLOCK;
 
     Serial << "ok demo, 19:59:" << (60 - lead) << " rolling over in " << lead << "s" << endl;
+}
+
+void handleDateCommand(char* arguments) {
+    toLower(arguments);
+
+    if (arguments[0] == 0) {
+        Serial << "date " << dateDisplay.modeName() << " dim=" << dateDisplay.getDimming() << endl;
+
+        return;
+    }
+
+    char* rest = nullptr;
+    char* word = splitWord(arguments, &rest);
+
+    if (strcmp(word, "dm") == 0) {
+        dateDisplay.setMode(DATE_DAY_MONTH);
+    } else if (strcmp(word, "d") == 0) {
+        dateDisplay.setMode(DATE_DAY);
+    } else if (strcmp(word, "off") == 0) {
+        dateDisplay.setMode(DATE_OFF);
+    } else if (strcmp(word, "dim") == 0) {
+        dateDisplay.setDimming((uint8_t)constrain(atoi(rest), 0, 255));
+    } else {
+        Serial << "error: date must be dm, d, off or dim <0-255>" << endl;
+
+        return;
+    }
+
+    Serial << "ok date " << dateDisplay.modeName() << " dim=" << dateDisplay.getDimming() << endl;
 }
 
 void handleAnimCommand(char* arguments) {
@@ -279,7 +315,7 @@ void handleCommand(char* line) {
     } else if (strcmp(command, "ping") == 0) {
         Serial << "pong" << endl;
     } else if (strcmp(command, "status") == 0) {
-        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
+        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " date=" << dateDisplay.modeName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
                << " uptimeS=" << (millis() / 1000) << endl;
 
         reportLayout();
@@ -304,6 +340,8 @@ void handleCommand(char* line) {
         handleAnimCommand(arguments);
     } else if (strcmp(command, "demo") == 0) {
         handleDemoCommand(arguments);
+    } else if (strcmp(command, "date") == 0) {
+        handleDateCommand(arguments);
     } else if (strcmp(command, "notify") == 0) {
         handleNotifyCommand(arguments);
     } else if (strcmp(command, "clear") == 0) {
@@ -375,7 +413,7 @@ void loop() {
     } else if (mode == MODE_TEST) {
         DISPLAY_TESTS[testIndex].render(matrix, frameCounter);
     } else {
-        ClockFace::render(matrix, timeKeeper, digitAnimator, clockColor);
+        ClockFace::render(matrix, timeKeeper, digitAnimator, dateDisplay, clockColor);
     }
 
     FastLED.show();
