@@ -42,4 +42,4 @@ constexpr uint32_t DIGIT_FADE_MS = 250;
 
 // Digits that change together cascade right to left rather than flipping as a slab, which is most
 // of the charm on a rollover like 19:59 -> 20:00.
-constexpr uint32_t DIGIT_STAGGER_MS = 100;
+constexpr uint32_t DIGIT_STAGGER_MS = 50;
