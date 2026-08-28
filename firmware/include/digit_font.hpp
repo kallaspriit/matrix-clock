@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "glyph.hpp"
 #include "led_matrix.hpp"
 
 // A hand drawn 5x8 digit set that uses the full height of the panel. The built in GFX font is 5x7
@@ -28,10 +29,11 @@ static const uint8_t DIGIT_GLYPHS[10][DIGIT_HEIGHT] = {
     {0x70, 0x88, 0x88, 0x88, 0x78, 0x08, 0x10, 0x60},  // 9
 };
 
-// Four digits plus a colon comes to 27 of the 32 columns, which leaves a small margin either side.
-// Digits sit in pairs with a single column between them and a wider gap around the colon.
-constexpr int16_t DIGIT_COLUMNS[4] = {2, 8, 18, 24};
-constexpr int16_t COLON_COLUMN = 15;
+// Four digits plus a colon comes to 25 columns, which is the floor: 5+1+5 for the hours, 1+1+1
+// around the colon, 5+1+5 for the minutes. That frees columns 0-5 for the date block and column
+// 6 as its separator, so the panel is used edge to edge with nothing spare.
+constexpr int16_t DIGIT_COLUMNS[4] = {7, 13, 21, 27};
+constexpr int16_t COLON_COLUMN = 19;
 constexpr int16_t COLON_TOP_ROW = 2;
 constexpr int16_t COLON_BOTTOM_ROW = 5;
 
@@ -47,24 +49,8 @@ inline void drawGlyph(LedMatrix& matrix, int16_t x, int16_t y, uint8_t digit, co
         return;
     }
 
-    const uint8_t* glyph = DIGIT_GLYPHS[digit];
-    bool flat = topColor == bottomColor;
+    drawGlyphRows(matrix, x, y, DIGIT_GLYPHS[digit], DIGIT_WIDTH, DIGIT_HEIGHT, topColor, bottomColor);
 
-    for (int16_t row = 0; row < DIGIT_HEIGHT; row++) {
-        uint8_t bits = glyph[row];
-
-        if (bits == 0) {
-            continue;
-        }
-
-        CRGB rowColor = flat ? topColor : blend(topColor, bottomColor, (uint8_t)((row * 255) / (DIGIT_HEIGHT - 1)));
-
-        for (int16_t column = 0; column < DIGIT_WIDTH; column++) {
-            if (bits & (0x80 >> column)) {
-                matrix.blendPixel(x + column, y + row, rowColor);
-            }
-        }
-    }
 }
 
 inline void drawGlyph(LedMatrix& matrix, int16_t x, int16_t y, uint8_t digit, const CRGB& color) {

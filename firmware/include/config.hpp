@@ -43,3 +43,12 @@ constexpr uint32_t DIGIT_FADE_MS = 250;
 // Digits that change together cascade right to left rather than flipping as a slab, which is most
 // of the charm on a rollover like 19:59 -> 20:00.
 constexpr uint32_t DIGIT_STAGGER_MS = 50;
+
+// The date block occupies columns 0-5, two touching 3 wide digits, with column 6 as the separator
+// before the time. Digits are told apart by colour rather than a gap column.
+constexpr int16_t DATE_COLUMN_A = 0;
+constexpr int16_t DATE_COLUMN_B = 3;
+
+// The date renders at full brightness alongside the time. Dimming it was tried and made the small
+// glyphs harder to read for no real gain, but the knob is kept for the 'date dim' command.
+constexpr uint8_t DATE_BRIGHTNESS_SCALE = 255;
