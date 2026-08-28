@@ -34,3 +34,12 @@ constexpr size_t SERIAL_LINE_LIMIT = 128;
 // 180 degree rotation is exactly what the two flip flags do, so it cancels them rather than adding
 // them, which leaves plain serpentine column major.
 constexpr uint8_t DEFAULT_LAYOUT_BITS = 0x03; // serpentine, column major, no flips
+
+// Digit transition timings. The roll is slower than the fade because it has further to travel and
+// reads as mechanical, the fade wants to be quick enough to feel like a glance rather than an event.
+constexpr uint32_t DIGIT_ROLL_MS = 300;
+constexpr uint32_t DIGIT_FADE_MS = 250;
+
+// Digits that change together cascade right to left rather than flipping as a slab, which is most
+// of the charm on a rollover like 19:59 -> 20:00.
+constexpr uint32_t DIGIT_STAGGER_MS = 100;

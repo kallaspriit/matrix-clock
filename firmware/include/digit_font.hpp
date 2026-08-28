@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include "led_matrix.hpp"
+
 // A hand drawn 5x8 digit set that uses the full height of the panel. The built in GFX font is 5x7
 // and has to leave the bottom row empty, which wastes an eighth of a display this small.
 //
@@ -32,3 +34,39 @@ constexpr int16_t DIGIT_COLUMNS[4] = {2, 8, 18, 24};
 constexpr int16_t COLON_COLUMN = 15;
 constexpr int16_t COLON_TOP_ROW = 2;
 constexpr int16_t COLON_BOTTOM_ROW = 5;
+
+// Replaces the plain drawBitmap call this used to make. Two differences matter:
+//
+//   1. Colour is computed per row, interpolating top to bottom across the glyph. Passing the same
+//      colour twice gives a flat digit, passing two gives a vertical gradient.
+//   2. It blends additively and lets rows fall outside the panel, which is what makes the roll
+//      transition free: draw the outgoing glyph above the panel and the incoming one below it, and
+//      the clipping handles itself.
+inline void drawGlyph(LedMatrix& matrix, int16_t x, int16_t y, uint8_t digit, const CRGB& topColor, const CRGB& bottomColor) {
+    if (digit > 9) {
+        return;
+    }
+
+    const uint8_t* glyph = DIGIT_GLYPHS[digit];
+    bool flat = topColor == bottomColor;
+
+    for (int16_t row = 0; row < DIGIT_HEIGHT; row++) {
+        uint8_t bits = glyph[row];
+
+        if (bits == 0) {
+            continue;
+        }
+
+        CRGB rowColor = flat ? topColor : blend(topColor, bottomColor, (uint8_t)((row * 255) / (DIGIT_HEIGHT - 1)));
+
+        for (int16_t column = 0; column < DIGIT_WIDTH; column++) {
+            if (bits & (0x80 >> column)) {
+                matrix.blendPixel(x + column, y + row, rowColor);
+            }
+        }
+    }
+}
+
+inline void drawGlyph(LedMatrix& matrix, int16_t x, int16_t y, uint8_t digit, const CRGB& color) {
+    drawGlyph(matrix, x, y, digit, color, color);
+}

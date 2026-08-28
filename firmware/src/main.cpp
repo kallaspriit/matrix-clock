@@ -4,6 +4,7 @@
 
 #include "clock_face.hpp"
 #include "config.hpp"
+#include "digit_animator.hpp"
 #include "display_tests.hpp"
 #include "led_matrix.hpp"
 #include "stream_operators.hpp"
@@ -17,12 +18,13 @@ CRGB leds[NUM_LEDS];
 LedMatrix matrix(leds, MATRIX_WIDTH, MATRIX_HEIGHT);
 TimeKeeper timeKeeper;
 Notification notification;
+DigitAnimator digitAnimator;
 
 RenderMode mode = MODE_TEST;
 size_t testIndex = 0;
 uint32_t frameCounter = 0;
 uint8_t brightness = DEFAULT_BRIGHTNESS;
-uint16_t clockColor = Color::CYAN;
+CRGB clockColor = CRGB(0, 200, 255);
 
 char serialLine[SERIAL_LINE_LIMIT];
 size_t serialLineLength = 0;
@@ -105,6 +107,8 @@ void printHelp() {
     Serial << "  time <epochSeconds>    sync the clock, host sends LOCAL epoch" << endl;
     Serial << "  bright <0-255>         global brightness" << endl;
     Serial << "  color <r> <g> <b>      clock face color" << endl;
+    Serial << "  anim <roll|fade|none>  how digits change over" << endl;
+    Serial << "  demo [seconds]         jump to just before 20:00 to watch all four digits cascade" << endl;
     Serial << "  notify <count> <text>  envelope, unread count, then scrolls the text" << endl;
     Serial << "  clear                  dismiss the current notification" << endl;
     Serial << endl;
@@ -183,6 +187,47 @@ void handleNotifyCommand(char* arguments) {
     Serial << "ok notify" << endl;
 }
 
+// Jumps the clock to a few seconds before 20:00 so the four digit cascade can be watched whenever
+// you like instead of waiting for a real rollover. The clock only ever looks at the time of day, so
+// the date part of the epoch is irrelevant and this works even before the host has synced.
+void handleDemoCommand(char* arguments) {
+    int32_t lead = (int32_t)atoi(arguments);
+
+    if (lead < 1 || lead > 59) {
+        lead = 3;
+    }
+
+    // 72000 seconds into the day is 20:00:00, so stepping back lands in the last minute of 19:xx
+    timeKeeper.sync((uint32_t)(72000 - lead));
+    mode = MODE_CLOCK;
+
+    Serial << "ok demo, 19:59:" << (60 - lead) << " rolling over in " << lead << "s" << endl;
+}
+
+void handleAnimCommand(char* arguments) {
+    toLower(arguments);
+
+    if (arguments[0] == '\0') {
+        Serial << "anim " << digitAnimator.transitionName() << endl;
+
+        return;
+    }
+
+    if (strcmp(arguments, "roll") == 0) {
+        digitAnimator.setTransition(TRANSITION_ROLL);
+    } else if (strcmp(arguments, "fade") == 0) {
+        digitAnimator.setTransition(TRANSITION_FADE);
+    } else if (strcmp(arguments, "none") == 0) {
+        digitAnimator.setTransition(TRANSITION_NONE);
+    } else {
+        Serial << "error: anim must be roll, fade or none" << endl;
+
+        return;
+    }
+
+    Serial << "ok anim " << digitAnimator.transitionName() << endl;
+}
+
 void handleModeCommand(char* arguments) {
     toLower(arguments);
 
@@ -212,7 +257,7 @@ void handleColorCommand(char* arguments) {
         return;
     }
 
-    clockColor = LedMatrix::rgb((uint8_t)constrain(r, 0, 255), (uint8_t)constrain(g, 0, 255), (uint8_t)constrain(b, 0, 255));
+    clockColor = CRGB((uint8_t)constrain(r, 0, 255), (uint8_t)constrain(g, 0, 255), (uint8_t)constrain(b, 0, 255));
 
     Serial << "ok color" << endl;
 }
@@ -234,7 +279,7 @@ void handleCommand(char* line) {
     } else if (strcmp(command, "ping") == 0) {
         Serial << "pong" << endl;
     } else if (strcmp(command, "status") == 0) {
-        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
+        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
                << " uptimeS=" << (millis() / 1000) << endl;
 
         reportLayout();
@@ -255,6 +300,10 @@ void handleCommand(char* line) {
         Serial << "ok bright " << brightness << endl;
     } else if (strcmp(command, "color") == 0) {
         handleColorCommand(arguments);
+    } else if (strcmp(command, "anim") == 0) {
+        handleAnimCommand(arguments);
+    } else if (strcmp(command, "demo") == 0) {
+        handleDemoCommand(arguments);
     } else if (strcmp(command, "notify") == 0) {
         handleNotifyCommand(arguments);
     } else if (strcmp(command, "clear") == 0) {
@@ -326,7 +375,7 @@ void loop() {
     } else if (mode == MODE_TEST) {
         DISPLAY_TESTS[testIndex].render(matrix, frameCounter);
     } else {
-        ClockFace::render(matrix, timeKeeper, clockColor);
+        ClockFace::render(matrix, timeKeeper, digitAnimator, clockColor);
     }
 
     FastLED.show();

@@ -97,6 +97,17 @@ class LedMatrix : public Adafruit_GFX {
         leds[index] = color;
     }
 
+    // Adds to a pixel rather than replacing it, saturating at full. Crossfading two glyphs needs
+    // this: where both have the same pixel lit, out*(1-t) + in*t has to stay constant, and plain
+    // overwriting would instead dip that pixel to zero halfway through the transition.
+    void blendPixel(int16_t x, int16_t y, const CRGB& color) {
+        if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+            return;
+        }
+
+        leds[layout.index(x, y, WIDTH, HEIGHT)] += color;
+    }
+
     void clear() {
         fill_solid(leds, (uint16_t)(WIDTH * HEIGHT), CRGB::Black);
     }

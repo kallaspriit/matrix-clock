@@ -4,6 +4,7 @@
 #include <Fonts/TomThumb.h>
 
 #include "config.hpp"
+#include "digit_animator.hpp"
 #include "digit_font.hpp"
 #include "led_matrix.hpp"
 
@@ -45,7 +46,7 @@ namespace ClockFace {
 
     // Digits come from the custom 5x8 set so they fill all eight rows. The blinking colon carries
     // the seconds on its own, which reads better than giving up a row to a progress bar.
-    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, uint16_t color) {
+    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, const CRGB& color) {
         matrix.fillScreen(Color::BLACK);
         matrix.setFont(nullptr);
         matrix.setTextSize(1);
@@ -74,14 +75,13 @@ namespace ClockFace {
             (uint8_t)(minutes % 10),
         };
 
-        for (uint8_t i = 0; i < 4; i++) {
-            matrix.drawBitmap(DIGIT_COLUMNS[i], 0, DIGIT_GLYPHS[digits[i]], DIGIT_WIDTH, DIGIT_HEIGHT, color);
-        }
+        animator.update(digits);
+        animator.render(matrix, color);
 
         // The colon blinking once a second is the only seconds indication now
         if (millis() % 1000 < 500) {
-            matrix.drawPixel(COLON_COLUMN, COLON_TOP_ROW, color);
-            matrix.drawPixel(COLON_COLUMN, COLON_BOTTOM_ROW, color);
+            matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, color);
+            matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, color);
         }
     }
 
