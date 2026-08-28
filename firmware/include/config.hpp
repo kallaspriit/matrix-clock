@@ -3,7 +3,8 @@
 #include <Arduino.h>
 
 // Hardware wiring
-constexpr uint8_t DATA_PIN = 19;
+// constexpr uint8_t DATA_PIN = 19; // // EatSpot V3
+constexpr uint8_t DATA_PIN = 29; // EatSpot V2
 constexpr int16_t MATRIX_WIDTH = 32;
 constexpr int16_t MATRIX_HEIGHT = 8;
 constexpr uint16_t NUM_LEDS = MATRIX_WIDTH * MATRIX_HEIGHT;
@@ -27,6 +28,9 @@ constexpr size_t SERIAL_LINE_LIMIT = 128;
 
 // Wiring permutation the panel actually uses. Boot into the "corners" test, run "layout next"
 // until it reads correctly, then copy the reported bits here so it comes up right every time.
-// Confirmed against the panel with the 'origin' test: LED 0 sits bottom right (next to the data
-// input connector) and the chain finishes at bottom left, snaking up and down in columns of 8.
-constexpr uint8_t DEFAULT_LAYOUT_BITS = 0x0f;  // serpentine, column major, flipX, flipY
+// Confirmed against the bare panel with the 'origin' test: LED 0 sits bottom right (next to the
+// data input connector) and the chain finishes at bottom left, snaking up and down in columns of 8.
+// On its own that is bits 0x0f, but the panel is mounted 180 degrees rotated in the enclosure. A
+// 180 degree rotation is exactly what the two flip flags do, so it cancels them rather than adding
+// them, which leaves plain serpentine column major.
+constexpr uint8_t DEFAULT_LAYOUT_BITS = 0x03; // serpentine, column major, no flips

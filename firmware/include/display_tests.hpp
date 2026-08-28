@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <Fonts/TomThumb.h>
 
+#include "digit_font.hpp"
 #include "led_matrix.hpp"
 
 // Each test renders one frame. Tests that need animation derive it from the frame counter, which
@@ -89,21 +90,20 @@ namespace DisplayTests {
         (void)frame;
     }
 
-    // Doubles as a preview of the clock face, if this reads correctly the layout is right
+    // Draws 12:34 through the real clock layout, so it is a genuine preview and not just a font test
     inline void text(LedMatrix& matrix, uint32_t frame) {
+        static const uint8_t sample[4] = {1, 2, 3, 4};
+
         matrix.fillScreen(Color::BLACK);
 
-        matrix.setTextColor(Color::CYAN);
-        matrix.setCursor(2, 0);
-        matrix.print("12");
+        for (uint8_t i = 0; i < 4; i++) {
+            matrix.drawBitmap(DIGIT_COLUMNS[i], 0, DIGIT_GLYPHS[sample[i]], DIGIT_WIDTH, DIGIT_HEIGHT, Color::CYAN);
+        }
 
-        matrix.drawPixel(15, 2, Color::CYAN);
-        matrix.drawPixel(15, 4, Color::CYAN);
+        matrix.drawPixel(COLON_COLUMN, COLON_TOP_ROW, Color::CYAN);
+        matrix.drawPixel(COLON_COLUMN, COLON_BOTTOM_ROW, Color::CYAN);
 
-        matrix.setCursor(18, 0);
-        matrix.print("34");
-
-        // Origin marker, should sit in the top left next to the "1"
+        // Origin marker, should sit in the top left corner clear of the digits
         matrix.drawPixel(0, 0, LedMatrix::rgb(60, 0, 0));
 
         (void)frame;

@@ -4,6 +4,7 @@
 #include <Fonts/TomThumb.h>
 
 #include "config.hpp"
+#include "digit_font.hpp"
 #include "led_matrix.hpp"
 
 // The RP2040 has no battery backed clock, so time comes from the host over serial and is carried
@@ -42,7 +43,8 @@ class TimeKeeper {
 
 namespace ClockFace {
 
-    // The built in 5x7 font occupies rows 0..6, which leaves the bottom row free for a seconds bar
+    // Digits come from the custom 5x8 set so they fill all eight rows. The blinking colon carries
+    // the seconds on its own, which reads better than giving up a row to a progress bar.
     inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, uint16_t color) {
         matrix.fillScreen(Color::BLACK);
         matrix.setFont(nullptr);
@@ -64,31 +66,22 @@ namespace ClockFace {
         uint32_t secondsOfDay = timeKeeper.now() % 86400UL;
         uint8_t hours = (uint8_t)(secondsOfDay / 3600);
         uint8_t minutes = (uint8_t)((secondsOfDay % 3600) / 60);
-        uint8_t seconds = (uint8_t)(secondsOfDay % 60);
 
-        char buffer[4];
+        uint8_t digits[4] = {
+            (uint8_t)(hours / 10),
+            (uint8_t)(hours % 10),
+            (uint8_t)(minutes / 10),
+            (uint8_t)(minutes % 10),
+        };
 
-        matrix.setTextColor(color);
-
-        snprintf(buffer, sizeof(buffer), "%02u", hours);
-        matrix.setCursor(2, 0);
-        matrix.print(buffer);
-
-        snprintf(buffer, sizeof(buffer), "%02u", minutes);
-        matrix.setCursor(18, 0);
-        matrix.print(buffer);
-
-        // A two pixel colon looks far cleaner than the font's own glyph at this size
-        if (millis() % 1000 < 500) {
-            matrix.drawPixel(15, 2, color);
-            matrix.drawPixel(15, 4, color);
+        for (uint8_t i = 0; i < 4; i++) {
+            matrix.drawBitmap(DIGIT_COLUMNS[i], 0, DIGIT_GLYPHS[digits[i]], DIGIT_WIDTH, DIGIT_HEIGHT, color);
         }
 
-        // Seconds sweep along the bottom row
-        int16_t barWidth = (int16_t)((seconds * MATRIX_WIDTH) / 60);
-
-        if (barWidth > 0) {
-            matrix.drawFastHLine(0, MATRIX_HEIGHT - 1, barWidth, Color::DIM_BLUE);
+        // The colon blinking once a second is the only seconds indication now
+        if (millis() % 1000 < 500) {
+            matrix.drawPixel(COLON_COLUMN, COLON_TOP_ROW, color);
+            matrix.drawPixel(COLON_COLUMN, COLON_BOTTOM_ROW, color);
         }
     }
 
