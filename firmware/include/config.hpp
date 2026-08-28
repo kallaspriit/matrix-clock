@@ -52,3 +52,9 @@ constexpr int16_t DATE_COLUMN_B = 3;
 // The date renders at full brightness alongside the time. Dimming it was tried and made the small
 // glyphs harder to read for no real gain, but the knob is kept for the 'date dim' command.
 constexpr uint8_t DATE_BRIGHTNESS_SCALE = 255;
+
+// Seconds indicator, which owns the single column between the hours and the minutes.
+constexpr uint8_t SECONDS_BREATHE_FLOOR = 64;     // breathe never drops below this fraction of full
+constexpr uint32_t SECONDS_SCAN_PERIOD_MS = 2000; // one full sweep down and back up
+constexpr uint8_t SECONDS_SCAN_TAIL = 4;          // how many rows the trail spans
+constexpr uint8_t SECONDS_SCAN_LEAD_RATIO = 3;    // pixels ahead of the head fade this much faster

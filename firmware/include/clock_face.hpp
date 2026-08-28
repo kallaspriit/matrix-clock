@@ -8,6 +8,7 @@
 #include "digit_animator.hpp"
 #include "digit_font.hpp"
 #include "led_matrix.hpp"
+#include "seconds_indicator.hpp"
 
 // The RP2040 has no battery backed clock, so time comes from the host over serial and is carried
 // forward with millis() until the next sync. The host sends local epoch seconds, which keeps all
@@ -81,7 +82,7 @@ namespace ClockFace {
 
     // Digits come from the custom 5x8 set so they fill all eight rows. The blinking colon carries
     // the seconds on its own, which reads better than giving up a row to a progress bar.
-    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, DateDisplay& date, const CRGB& color) {
+    inline void render(LedMatrix& matrix, const TimeKeeper& timeKeeper, DigitAnimator& animator, DateDisplay& date, SecondsIndicator& seconds, const CRGB& color) {
         matrix.fillScreen(Color::BLACK);
         matrix.setFont(nullptr);
         matrix.setTextSize(1);
@@ -115,11 +116,7 @@ namespace ClockFace {
 
         date.render(matrix, timeKeeper.dayOfMonth(), timeKeeper.monthOfYear());
 
-        // The colon blinking once a second is the only seconds indication now
-        if (millis() % 1000 < 500) {
-            matrix.blendPixel(COLON_COLUMN, COLON_TOP_ROW, color);
-            matrix.blendPixel(COLON_COLUMN, COLON_BOTTOM_ROW, color);
-        }
+        seconds.render(matrix, color);
     }
 
 }  // namespace ClockFace

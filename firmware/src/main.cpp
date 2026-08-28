@@ -8,6 +8,7 @@
 #include "digit_animator.hpp"
 #include "display_tests.hpp"
 #include "led_matrix.hpp"
+#include "seconds_indicator.hpp"
 #include "stream_operators.hpp"
 
 enum RenderMode {
@@ -21,6 +22,7 @@ TimeKeeper timeKeeper;
 Notification notification;
 DigitAnimator digitAnimator;
 DateDisplay dateDisplay;
+SecondsIndicator secondsIndicator;
 
 RenderMode mode = MODE_TEST;
 size_t testIndex = 0;
@@ -113,6 +115,7 @@ void printHelp() {
     Serial << "  demo [seconds]         jump to just before 20:00 to watch all four digits cascade" << endl;
     Serial << "  date <dm|d|off>        day over month, day only at full height, or hidden" << endl;
     Serial << "  date dim <0-255>       how far the date is dimmed below the time" << endl;
+    Serial << "  sec <colon|breathe|scan|off>  what the column between hours and minutes does" << endl;
     Serial << "  notify <count> <text>  envelope, unread count, then scrolls the text" << endl;
     Serial << "  clear                  dismiss the current notification" << endl;
     Serial << endl;
@@ -209,6 +212,32 @@ void handleDemoCommand(char* arguments) {
     mode = MODE_CLOCK;
 
     Serial << "ok demo, 19:59:" << (60 - lead) << " rolling over in " << lead << "s" << endl;
+}
+
+void handleSecondsCommand(char* arguments) {
+    toLower(arguments);
+
+    if (arguments[0] == 0) {
+        Serial << "sec " << secondsIndicator.styleName() << endl;
+
+        return;
+    }
+
+    if (strcmp(arguments, "colon") == 0) {
+        secondsIndicator.setStyle(SECONDS_COLON);
+    } else if (strcmp(arguments, "breathe") == 0) {
+        secondsIndicator.setStyle(SECONDS_BREATHE);
+    } else if (strcmp(arguments, "scan") == 0) {
+        secondsIndicator.setStyle(SECONDS_SCAN);
+    } else if (strcmp(arguments, "off") == 0) {
+        secondsIndicator.setStyle(SECONDS_OFF);
+    } else {
+        Serial << "error: sec must be colon, breathe, scan or off" << endl;
+
+        return;
+    }
+
+    Serial << "ok sec " << secondsIndicator.styleName() << endl;
 }
 
 void handleDateCommand(char* arguments) {
@@ -315,7 +344,7 @@ void handleCommand(char* line) {
     } else if (strcmp(command, "ping") == 0) {
         Serial << "pong" << endl;
     } else if (strcmp(command, "status") == 0) {
-        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " date=" << dateDisplay.modeName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
+        Serial << "mode=" << (mode == MODE_CLOCK ? "clock" : "test") << " test=" << DISPLAY_TESTS[testIndex].name << " brightness=" << brightness << " anim=" << digitAnimator.transitionName() << " date=" << dateDisplay.modeName() << " sec=" << secondsIndicator.styleName() << " synced=" << (timeKeeper.isSynced() ? "yes" : "no")
                << " uptimeS=" << (millis() / 1000) << endl;
 
         reportLayout();
@@ -342,6 +371,8 @@ void handleCommand(char* line) {
         handleDemoCommand(arguments);
     } else if (strcmp(command, "date") == 0) {
         handleDateCommand(arguments);
+    } else if (strcmp(command, "sec") == 0) {
+        handleSecondsCommand(arguments);
     } else if (strcmp(command, "notify") == 0) {
         handleNotifyCommand(arguments);
     } else if (strcmp(command, "clear") == 0) {
@@ -413,7 +444,7 @@ void loop() {
     } else if (mode == MODE_TEST) {
         DISPLAY_TESTS[testIndex].render(matrix, frameCounter);
     } else {
-        ClockFace::render(matrix, timeKeeper, digitAnimator, dateDisplay, clockColor);
+        ClockFace::render(matrix, timeKeeper, digitAnimator, dateDisplay, secondsIndicator, clockColor);
     }
 
     FastLED.show();
