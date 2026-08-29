@@ -24,6 +24,10 @@ constexpr uint8_t DEFAULT_BRIGHTNESS = 128;
 constexpr uint32_t TARGET_FPS = 60;
 constexpr uint32_t FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 
+// Shown at boot, before the host has connected and sent a time. Needs to be something that looks
+// deliberate rather than diagnostic, since it is what the panel displays whenever the PC is off.
+static const char* IDLE_TEST_NAME = "gradient";
+
 constexpr uint32_t SERIAL_BAUD = 115200;
 constexpr size_t SERIAL_LINE_LIMIT = 128;
 

@@ -445,9 +445,8 @@ void setup() {
 
     matrix.layout.fromBits(DEFAULT_LAYOUT_BITS);
 
-    // Boot into the orientation test, it is the first thing worth confirming on new hardware
-    int corners = findTest("corners");
-    testIndex = corners < 0 ? 0 : (size_t)corners;
+    int idle = findTest(IDLE_TEST_NAME);
+    testIndex = idle < 0 ? 0 : (size_t)idle;
 
     Serial << endl << "led-clock ready, " << NUM_LEDS << " LEDs on pin " << DATA_PIN << ", limited to " << MAX_MILLIAMPS << " mA" << endl;
 
