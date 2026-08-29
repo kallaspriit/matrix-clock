@@ -29,26 +29,29 @@ static const uint8_t DATE_SMALL_GLYPHS[10][DATE_SMALL_HEIGHT] = {
     {0xe0, 0xa0, 0xe0, 0x20},  // 9
 };
 
-// 3x8, used when only the day is shown and it gets the full height of the panel
-constexpr int16_t DATE_LARGE_HEIGHT = 8;
+// 3x7, used when only the day is shown. One row shorter than the panel on purpose: the units digit
+// is drawn a row lower than the tens digit, so their horizontal bars never line up and the two
+// touching digits separate structurally instead of relying on colour alone.
+constexpr int16_t DATE_LARGE_HEIGHT = 7;
+constexpr int16_t DATE_LARGE_UNITS_DROP = 1;
 
 static const uint8_t DATE_LARGE_GLYPHS[10][DATE_LARGE_HEIGHT] = {
-    {0xe0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xe0},  // 0
-    {0x40, 0xc0, 0x40, 0x40, 0x40, 0x40, 0x40, 0xe0},  // 1
-    {0xe0, 0x20, 0x20, 0xe0, 0x80, 0x80, 0x80, 0xe0},  // 2
-    {0xe0, 0x20, 0x20, 0xe0, 0x20, 0x20, 0x20, 0xe0},  // 3
-    {0xa0, 0xa0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0x20},  // 4
-    {0xe0, 0x80, 0x80, 0xe0, 0x20, 0x20, 0x20, 0xe0},  // 5
-    {0xe0, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xa0, 0xe0},  // 6
-    {0xe0, 0x20, 0x20, 0x40, 0x40, 0x40, 0x40, 0x40},  // 7
-    {0xe0, 0xa0, 0xa0, 0xe0, 0xa0, 0xa0, 0xa0, 0xe0},  // 8
-    {0xe0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0x20, 0xe0},  // 9
+    {0xe0, 0xa0, 0xa0, 0xa0, 0xa0, 0xa0, 0xe0},  // 0
+    {0x40, 0xc0, 0x40, 0x40, 0x40, 0x40, 0xe0},  // 1
+    {0xe0, 0x20, 0x20, 0xe0, 0x80, 0x80, 0xe0},  // 2
+    {0xe0, 0x20, 0x20, 0xe0, 0x20, 0x20, 0xe0},  // 3
+    {0xa0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0x20},  // 4
+    {0xe0, 0x80, 0x80, 0xe0, 0x20, 0x20, 0xe0},  // 5
+    {0xe0, 0x80, 0x80, 0xe0, 0xa0, 0xa0, 0xe0},  // 6
+    {0xe0, 0x20, 0x20, 0x40, 0x40, 0x40, 0x40},  // 7
+    {0xe0, 0xa0, 0xa0, 0xe0, 0xa0, 0xa0, 0xe0},  // 8
+    {0xe0, 0xa0, 0xa0, 0xe0, 0x20, 0x20, 0xe0},  // 9
 };
 
 enum DateMode {
     DATE_OFF,
     DATE_DAY_MONTH,  // day over month, 3x4 each. Striking, but reads as decoration more than as a date
-    DATE_DAY,        // day only, 3x8. The default, twice the glyph structure and actually readable
+    DATE_DAY,        // day only, 3x7 staggered. The default, and the one that is actually readable
 };
 
 // The two ends of the shared palette, which is what keeps touching digits separable with no gap
@@ -102,7 +105,7 @@ class DateDisplay {
         }
 
         if (mode == DATE_DAY) {
-            drawPair(matrix, 0, day, DATE_LARGE_GLYPHS[0], DATE_LARGE_HEIGHT, dayTens, dayUnits);
+            drawPair(matrix, 0, day, DATE_LARGE_GLYPHS[0], DATE_LARGE_HEIGHT, DATE_LARGE_UNITS_DROP, dayTens, dayUnits);
 
             return;
         }
@@ -115,20 +118,22 @@ class DateDisplay {
             monthUnits.nscale8(dimming);
         }
 
-        drawPair(matrix, 0, day, DATE_SMALL_GLYPHS[0], DATE_SMALL_HEIGHT, dayTens, dayUnits);
-        drawPair(matrix, DATE_SMALL_HEIGHT, month, DATE_SMALL_GLYPHS[0], DATE_SMALL_HEIGHT, monthTens, monthUnits);
+        // Stacked there is no spare row to stagger into, so both rows sit flush
+        drawPair(matrix, 0, day, DATE_SMALL_GLYPHS[0], DATE_SMALL_HEIGHT, 0, dayTens, dayUnits);
+        drawPair(matrix, DATE_SMALL_HEIGHT, month, DATE_SMALL_GLYPHS[0], DATE_SMALL_HEIGHT, 0, monthTens, monthUnits);
     }
 
    private:
     DateMode mode = DATE_DAY;
     uint8_t dimming = DATE_BRIGHTNESS_SCALE;
 
-    // Draws a two digit value into the 6 column block, tens then units, touching
-    void drawPair(LedMatrix& matrix, int16_t y, uint8_t value, const uint8_t* table, int16_t height, const CRGB& tensColor, const CRGB& unitsColor) {
+    // Draws a two digit value into the 6 column block, tens then units, touching. unitsDrop shifts
+    // the units digit down by that many rows to break up the shared horizontal bars.
+    void drawPair(LedMatrix& matrix, int16_t y, uint8_t value, const uint8_t* table, int16_t height, int16_t unitsDrop, const CRGB& tensColor, const CRGB& unitsColor) {
         uint8_t tensDigit = (uint8_t)((value / 10) % 10);
         uint8_t unitsDigit = (uint8_t)(value % 10);
 
         drawGlyphRows(matrix, DATE_COLUMN_A, y, table + tensDigit * height, DATE_DIGIT_WIDTH, height, tensColor, tensColor);
-        drawGlyphRows(matrix, DATE_COLUMN_B, y, table + unitsDigit * height, DATE_DIGIT_WIDTH, height, unitsColor, unitsColor);
+        drawGlyphRows(matrix, DATE_COLUMN_B, y + unitsDrop, table + unitsDigit * height, DATE_DIGIT_WIDTH, height, unitsColor, unitsColor);
     }
 };
